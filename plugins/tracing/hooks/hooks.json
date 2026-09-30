@@ -1,0 +1,17 @@
+{
+  "description": "Upload completed WorkBuddy turns to Litefuse",
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CODEBUDDY_PLUGIN_ROOT}/dist/index.mjs\"",
+            "description": "Upload the completed WorkBuddy turn to Litefuse",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

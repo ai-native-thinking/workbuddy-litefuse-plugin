@@ -1,0 +1,24 @@
+{
+  "name": "workbuddy-litefuse-plugin",
+  "description": "Litefuse observability for WorkBuddy sessions",
+  "owner": {
+    "name": "ai-native-thinking"
+  },
+  "metadata": {
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "tracing",
+      "description": "Trace WorkBuddy turns, model calls, tools, token usage, and subagents to Litefuse.",
+      "source": "./plugins/tracing",
+      "version": "0.1.0",
+      "category": "development",
+      "author": {
+        "name": "ai-native-thinking"
+      },
+      "license": "MIT",
+      "hooks": "./plugins/tracing/hooks/hooks.json"
+    }
+  ]
+}

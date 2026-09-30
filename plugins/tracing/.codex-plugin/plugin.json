@@ -1,0 +1,17 @@
+{
+  "name": "tracing",
+  "version": "0.1.0",
+  "description": "Trace WorkBuddy sessions to Litefuse.",
+  "author": {
+    "name": "ai-native-thinking"
+  },
+  "interface": {
+    "displayName": "Litefuse for WorkBuddy",
+    "shortDescription": "Trace WorkBuddy sessions to Litefuse",
+    "longDescription": "Uploads completed WorkBuddy transcripts to Litefuse as agent turns, model generations, tool calls, token usage, and nested subagents.",
+    "developerName": "ai-native-thinking",
+    "category": "Coding",
+    "capabilities": ["Read"],
+    "defaultPrompt": []
+  }
+}

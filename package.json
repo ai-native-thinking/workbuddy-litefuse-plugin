@@ -1,0 +1,39 @@
+{
+  "name": "@litefuse/workbuddy-litefuse-plugin",
+  "version": "0.1.0",
+  "description": "WorkBuddy plugin that traces agent turns, model calls, tools, token usage, and subagents to Litefuse",
+  "keywords": [
+    "workbuddy",
+    "codebuddy",
+    "litefuse",
+    "observability",
+    "tracing"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "tsdown --config plugins/tracing/tsdown.config.ts",
+    "test": "vitest run",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint:tsc": "tsc --noEmit",
+    "lint": "pnpm run format:check && pnpm run lint:tsc && pnpm run build"
+  },
+  "dependencies": {
+    "@langfuse/otel": "^5.4.1",
+    "@langfuse/tracing": "^5.4.1",
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/sdk-trace-node": "^2.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "prettier": "^3.9.4",
+    "tsdown": "^0.18.0",
+    "typescript": "^5.7.2",
+    "vitest": "^4.0.0"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@9.5.0"
+}

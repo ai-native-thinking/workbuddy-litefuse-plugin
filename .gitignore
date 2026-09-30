@@ -1,0 +1,8 @@
+node_modules/
+*.log
+.DS_Store
+*.jsonl.litefuse-workbuddy
+debug.log
+
+# The self-contained hook bundle is intentionally committed.
+!plugins/tracing/dist/index.mjs
