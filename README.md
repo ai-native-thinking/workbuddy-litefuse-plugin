@@ -91,7 +91,135 @@ find "$HOME/.workbuddy/projects" -name '*.litefuse-workbuddy' -print
 如果找不到 sidecar，请首先确认当前终端仍设置了 `CODEBUDDY_CONFIG_DIR` 和
 `WORKBUDDY_CONFIG_DIR`，再运行 `plugin list` 检查插件状态。
 
+## 本地安装（Windows）
+
+下面的步骤基于 Windows 11 + WorkBuddy 桌面版的实测。整体流程和 macOS 一致，但有两处
+Windows 桌面版的坑需要处理（端口冲突 + 桌面版禁用插件自带 hook），否则会出现
+"插件显示已启用、却永远不上报数据" 的情况。
+
+WorkBuddy 桌面版在 Windows 上的 CLI 路径为：
+
+```bat
+%LOCALAPPDATA%\Programs\WorkBuddy\resources\app.asar.unpacked\cli\bin\codebuddy
+```
+
+在 Git Bash 中等价为（下文统一用 `$CODEBUDDY` 指代）：
+
+```bash
+CODEBUDDY="/c/Users/$USER/AppData/Local/Programs/WorkBuddy/resources/app.asar.unpacked/cli/bin/codebuddy"
+```
+
+和 macOS 一样，必须指定配置目录，否则 CLI 会默认去读 `~/.codebuddy`，桌面版加载不到插件：
+
+```bash
+export CODEBUDDY_CONFIG_DIR="$HOME/.workbuddy"
+export WORKBUDDY_CONFIG_DIR="$HOME/.workbuddy"
+```
+
+### 1. 注册 marketplace 并安装插件
+
+直接用 CLI 安装时会遇到两个 Windows 特有的问题：
+
+- **端口冲突（EADDRINUSE 127.0.0.1:60389）**：CLI 会去 bind 桌面进程已经占用的端口。
+  解决方法是用一个"干净环境"启动 CLI，只保留必需变量，并**务必保留**
+  `CODEBUDDY_FORCE_LITE_WB_BUNDLE=1`（否则 CLI 会去找不存在的 `../dist/codebuddy`）。
+- **写操作被沙箱拦截**：`plugin enable` 偶尔会被沙箱策略拦下并提示
+  "Sandbox 未返回具体资源"，但 `plugin install` 其实已经把文件落盘了，无需重试。
+
+推荐用下面这条"干净环境"命令完成注册与安装（在 Git Bash 中先 `cd` 到仓库根目录）：
+
+```bash
+env -i HOME="$HOME" \
+  PATH="$(dirname "$(which node)"):/usr/bin:/bin" \
+  CODEBUDDY_FORCE_LITE_WB_BUNDLE=1 \
+  CODEBUDDY_CONFIG_DIR="$HOME/.workbuddy" \
+  WORKBUDDY_CONFIG_DIR="$HOME/.workbuddy" \
+  node "$CODEBUDDY" plugin marketplace add "$PWD"
+
+env -i HOME="$HOME" \
+  PATH="$(dirname "$(which node)"):/usr/bin:/bin" \
+  CODEBUDDY_FORCE_LITE_WB_BUNDLE=1 \
+  CODEBUDDY_CONFIG_DIR="$HOME/.workbuddy" \
+  WORKBUDDY_CONFIG_DIR="$HOME/.workbuddy" \
+  node "$CODEBUDDY" plugin install tracing@workbuddy-litefuse-plugin
+```
+
+前提是本机有 Node.js 22+（`which node` 能解析到）。`env -i` 的作用是清掉桌面端注入的
+端口 / gateway 相关变量，避免端口冲突。安装完成后插件文件会落在：
+
+```
+%USERPROFILE%\.workbuddy\plugins\cache\workbuddy-litefuse-plugin\tracing\0.1.0\
+```
+
+### 2. 启用插件
+
+如果第 1 步里 `plugin install` 之后 `plugin enable` 被沙箱拦了，可以直接编辑
+`~/.workbuddy/settings.json`，在 `enabledPlugins` 里加一行（没有该字段就新建）：
+
+```json
+{
+  "enabledPlugins": {
+    "tracing@workbuddy-litefuse-plugin": true
+  }
+}
+```
+
+### 3. 注册 hook（关键，Windows 桌面版必须做）
+
+**重要**：WorkBuddy 桌面版在启动 CLI 时会注入 `CODEBUDDY_DISABLE_EXTENDED_PLUGIN_HOOKS=1`，
+导致插件自带的 `hooks.json`（即 `Stop` 事件里的 `node "${CODEBUDDY_PLUGIN_ROOT}/dist/index.mjs"`）
+**不会被执行**。这跟 macOS / Windows 无关，是桌面版的通用行为（已在 Windows 安装包 `app.asar`
+中确认；macOS 桌面版同源，建议同样处理）。结果是：插件即便显示"已启用"，也永远不会有数据上报。
+
+规避办法：把 hook 命令显式写进**用户级** `settings.json` 的 `hooks.Stop`。用户级 hooks 不受
+上面的开关约束。在 `~/.workbuddy/settings.json` 中找到或新建 `hooks.Stop` 数组，追加一条：
+
+```json
+{
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"C:/Users/<你的用户名>/.workbuddy/plugins/cache/workbuddy-litefuse-plugin/tracing/0.1.0/dist/index.mjs\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+> - 把路径里的 `<你的用户名>` 替换成实际用户名；Windows 路径用正斜杠 `/` 或双反斜杠 `\\` 均可。
+> - 如果 `hooks.Stop` 里已经有其它命令（例如其它观测工具），把它们并列放在同一个 `hooks`
+>   数组里即可——各 hook 之间 fail-open，互不影响。
+
+### 4. 填写配置
+
+见下方「配置」一节，创建 `~/.workbuddy/litefuse.json` 并填入 `public_key` / `secret_key` /
+`base_url`。
+
+### 5. 重启并验证
+
+**完全退出** WorkBuddy（托盘图标右键退出，不是关窗口），重新启动，跑一轮新对话，然后检查去重
+sidecar 是否生成：
+
+```bash
+find "$HOME/.workbuddy/projects" -name '*.litefuse-workbuddy' -print
+```
+
+能看到 sidecar 文件即说明 hook 真正跑起来了。如果看不到，先确认 `~/.workbuddy/settings.json`
+里 `hooks.Stop` 已包含上面那条 `node .../dist/index.mjs` 命令，且 `enabledPlugins` 中插件为
+`true`。
+
 ## 禁用与卸载
+
+以下命令必须使用与安装时相同的 WorkBuddy 配置目录。如果打开了新的终端，请先重新设置
+`CODEBUDDY_CONFIG_DIR` / `WORKBUDDY_CONFIG_DIR`，并把 `CODEBUDDY` 换成对应平台的 CLI 路径
+（Windows 见上方「本地安装（Windows）」）。
 
 以下命令必须使用与安装时相同的 WorkBuddy 配置目录。如果打开了新的终端，请先重新设置：
 
